@@ -1,0 +1,52 @@
+@import 'tailwindcss';
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+html.high-contrast {
+  --hc-bg: #ffffff;
+  --hc-fg: #000000;
+}
+html.high-contrast.dark {
+  --hc-bg: #000000;
+  --hc-fg: #ffffff;
+}
+html.high-contrast body {
+  background: var(--hc-bg);
+  color: var(--hc-fg);
+}
+html.high-contrast .dark\:bg-slate-950,
+html.high-contrast.dark .dark\:bg-slate-950 {
+  background: var(--hc-bg) !important;
+}
+html.high-contrast .text-slate-900,
+html.high-contrast .dark\:text-white,
+html.high-contrast.dark .dark\:text-white {
+  color: var(--hc-fg) !important;
+}
+html.high-contrast a, html.high-contrast button {
+  outline: 2px solid transparent;
+}
+html.high-contrast a:focus-visible, html.high-contrast button:focus-visible {
+  outline: 3px solid #000;
+}
+
+html.large-text {
+  font-size: 18px;
+}
+html.large-text .text-xs { font-size: 0.85rem; }
+html.large-text .text-sm { font-size: 1rem; }
+html.large-text .text-base { font-size: 1.15rem; }
+html.large-text .text-lg { font-size: 1.35rem; }
