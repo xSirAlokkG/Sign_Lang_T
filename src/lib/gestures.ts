@@ -7,19 +7,14 @@ export type GestureLabel = {
 };
 
 export const GESTURE_LABELS: GestureLabel[] = [
-  { name: 'HELLO', display: 'Hello', category: 'greeting' },
   { name: 'GOODBYE', display: 'Goodbye', category: 'greeting' },
-  { name: 'YES', display: 'Yes', category: 'response' },
   { name: 'NO', display: 'No', category: 'response' },
   { name: 'PLEASE', display: 'Please', category: 'politeness' },
   { name: 'THANK_YOU', display: 'Thank You', category: 'courtesy' },
-  { name: 'HELP', display: 'Help', category: 'emergency' },
   { name: 'WATER', display: 'Water', category: 'basic_need' },
   { name: 'EAT', display: 'Eat', category: 'basic_need' },
-  { name: 'LOVE', display: 'Love', category: 'emotion' },
   { name: 'SAD', display: 'Sad', category: 'emotion' },
   { name: 'HAPPY', display: 'Happy', category: 'emotion' },
-  { name: 'STOP', display: 'Stop', category: 'command' },
   { name: 'I', display: 'I', category: 'sentence' },
   { name: 'YOU', display: 'You', category: 'sentence' },
 ];
@@ -53,21 +48,16 @@ type StaticRule = {
 };
 
 const STATIC_RULES: StaticRule[] = [
-  { name: 'LOVE', confidence: 0.88, test: (_lm, f, thumb) => thumb && f[1] && !f[2] && !f[3] && f[4] },
-  { name: 'STOP', confidence: 0.87, test: (_lm, f, thumb) => !thumb && f[1] && f[2] && f[3] && f[4] },
+  { name: 'GOODBYE', confidence: 0.85, test: (lm, f, thumb) => thumb && f[1] && f[2] && f[3] && f[4] && dist(lm[8], lm[12]) <= 0.1 },
+  { name: 'PLEASE', confidence: 0.83, test: (_lm, f, thumb) => thumb && f[1] && f[2] && f[3] && !f[4] },
   { name: 'WATER', confidence: 0.86, test: (lm, f, thumb) => thumb && f[1] && !f[2] && !f[3] && !f[4] && dist(lm[8], lm[12]) > 0.08 },
-  { name: 'YES', confidence: 0.85, test: (_lm, f, thumb) => !thumb && !f[1] && !f[2] && !f[3] && !f[4] },
   { name: 'NO', confidence: 0.84, test: (_lm, f, thumb) => thumb && !f[1] && !f[2] && !f[3] && f[4] },
   { name: 'YOU', confidence: 0.85, test: (_lm, f, thumb) => !thumb && f[1] && !f[2] && !f[3] && !f[4] },
   { name: 'I', confidence: 0.82, test: (_lm, f, thumb) => thumb && !f[1] && !f[2] && !f[3] && !f[4] },
-  { name: 'PLEASE', confidence: 0.83, test: (_lm, f, thumb) => thumb && f[1] && f[2] && f[3] && f[4] },
   { name: 'THANK_YOU', confidence: 0.84, test: (lm, f, thumb) => thumb && f[1] && f[2] && !f[3] && !f[4] && dist(lm[8], lm[12]) < 0.12 },
-  { name: 'HELP', confidence: 0.82, test: (_lm, f, thumb) => !thumb && !f[1] && f[2] && f[3] && f[4] },
   { name: 'EAT', confidence: 0.83, test: (_lm, f, thumb) => !thumb && f[1] && f[2] && !f[3] && !f[4] },
   { name: 'HAPPY', confidence: 0.82, test: (_lm, f, thumb) => thumb && f[1] && !f[2] && !f[3] && f[4] },
   { name: 'SAD', confidence: 0.80, test: (_lm, f, thumb) => !thumb && !f[1] && !f[2] && f[3] && f[4] },
-  { name: 'GOODBYE', confidence: 0.85, test: (_lm, f, thumb) => thumb && f[1] && f[2] && f[3] && f[4] },
-  { name: 'HELLO', confidence: 0.86, test: (lm, f, thumb) => thumb && f[1] && f[2] && f[3] && f[4] && dist(lm[8], lm[12]) > 0.1 },
 ];
 
 export type Classification = { name: string; confidence: number };

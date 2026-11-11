@@ -44,19 +44,14 @@ const FINGER_LABELS: Record<string, string> = {
 };
 
 const TARGET_STATES: Record<string, Record<string, FingerState>> = {
-  HELLO: { thumb: 'extended', index: 'extended', middle: 'extended', ring: 'extended', pinky: 'extended' },
   GOODBYE: { thumb: 'extended', index: 'extended', middle: 'extended', ring: 'extended', pinky: 'extended' },
-  YES: { thumb: 'folded', index: 'folded', middle: 'folded', ring: 'folded', pinky: 'folded' },
   NO: { thumb: 'extended', index: 'folded', middle: 'folded', ring: 'folded', pinky: 'extended' },
-  PLEASE: { thumb: 'extended', index: 'extended', middle: 'extended', ring: 'extended', pinky: 'extended' },
+  PLEASE: { thumb: 'extended', index: 'extended', middle: 'extended', ring: 'extended', pinky: 'folded' },
   THANK_YOU: { thumb: 'extended', index: 'extended', middle: 'extended', ring: 'folded', pinky: 'folded' },
-  HELP: { thumb: 'folded', index: 'folded', middle: 'extended', ring: 'extended', pinky: 'extended' },
   WATER: { thumb: 'extended', index: 'extended', middle: 'extended', ring: 'folded', pinky: 'folded' },
   EAT: { thumb: 'folded', index: 'extended', middle: 'extended', ring: 'folded', pinky: 'folded' },
-  LOVE: { thumb: 'extended', index: 'extended', middle: 'folded', ring: 'folded', pinky: 'extended' },
   SAD: { thumb: 'folded', index: 'folded', middle: 'folded', ring: 'extended', pinky: 'extended' },
   HAPPY: { thumb: 'extended', index: 'extended', middle: 'folded', ring: 'folded', pinky: 'extended' },
-  STOP: { thumb: 'folded', index: 'extended', middle: 'extended', ring: 'extended', pinky: 'extended' },
   I: { thumb: 'extended', index: 'folded', middle: 'folded', ring: 'folded', pinky: 'folded' },
   YOU: { thumb: 'folded', index: 'extended', middle: 'folded', ring: 'folded', pinky: 'folded' },
 };

@@ -9,7 +9,7 @@ export type SentenceState = {
   stableGesture: string | null;
   recent: Classification[];
   lockedGesture: string | null;
-  lockUntil: number;
+  phase: 'IDLE' | 'DETECTING' | 'STABLE' | 'CONFIRMED' | 'COOLDOWN';
 };
 
 export function createSentenceState(): SentenceState {
@@ -21,15 +21,14 @@ export function createSentenceState(): SentenceState {
     stableGesture: null,
     recent: [],
     lockedGesture: null,
-    lockUntil: 0,
+    phase: 'IDLE',
   };
 }
 
 const STABLE_MS = 500;
-const GAP_MS = 1200;
-const SMOOTH_WINDOW = 10;
-const COOLDOWN_MS = 500;
-const LOCK_MS = 1000;
+const SMOOTH_WINDOW = 8;
+const MIN_BUFFER = 5;
+const MAJORITY_RATIO = 0.6;
 
 export function addDetection(
   state: SentenceState,
@@ -37,15 +36,34 @@ export function addDetection(
   now: number,
   threshold: number,
 ): { state: SentenceState; added: string | null; smoothed: Classification | null } {
-  if (now < state.lockUntil && state.lockedGesture) {
-    const locked = { name: state.lockedGesture, confidence: threshold };
-    return { state: { ...state, recent: [...state.recent, ...(det ? [det] : [])].slice(-SMOOTH_WINDOW) }, added: null, smoothed: locked };
+  if (state.lockedGesture) {
+    if (det && det.name !== state.lockedGesture) {
+      return {
+        state: {
+          ...state,
+          lockedGesture: null,
+          recent: [det],
+          stableStart: null,
+          stableGesture: null,
+          lastGesture: det.name,
+          lastTime: now,
+          phase: 'DETECTING',
+        },
+        added: null,
+        smoothed: det,
+      };
+    }
+    return {
+      state: { ...state, recent: [...state.recent, ...(det ? [det] : [])].slice(-SMOOTH_WINDOW), phase: 'COOLDOWN' },
+      added: null,
+      smoothed: { name: state.lockedGesture, confidence: threshold },
+    };
   }
 
   const recent = [...state.recent, ...(det ? [det] : [])].slice(-SMOOTH_WINDOW);
 
-  if (recent.length < 4) {
-    return { state: { ...state, recent }, added: null, smoothed: det };
+  if (recent.length < MIN_BUFFER) {
+    return { state: { ...state, recent, phase: 'DETECTING' }, added: null, smoothed: det };
   }
 
   const counts = new Map<string, { name: string; total: number; confSum: number }>();
@@ -63,59 +81,61 @@ export function addDetection(
   const majorityRatio = best ? best.total / recent.length : 0;
 
   const smoothed: Classification | null =
-    best && majorityRatio >= 0.6 && avgConf >= threshold
+    best && majorityRatio >= MAJORITY_RATIO && avgConf >= threshold
       ? { name: best.name, confidence: Math.min(1, avgConf) }
       : null;
 
   if (!smoothed || smoothed.confidence < threshold) {
-    if (state.lastGesture && now - state.lastTime > GAP_MS) {
-      return {
-        state: { ...state, recent: [], lastGesture: null, stableStart: null, stableGesture: null, lockedGesture: null, lockUntil: 0 },
-        added: null,
-        smoothed: null,
-      };
-    }
-    return { state: { ...state, recent }, added: null, smoothed: null };
+    return { state: { ...state, recent, phase: 'DETECTING' }, added: null, smoothed: null };
   }
 
   if (smoothed.name === state.lastGesture) {
     if (state.stableStart === null) {
       return {
-        state: { ...state, recent, stableStart: now, stableGesture: smoothed.name, lastTime: now },
+        state: { ...state, recent, stableStart: now, stableGesture: smoothed.name, lastTime: now, phase: 'STABLE' },
         added: null,
         smoothed,
       };
     }
     if (now - state.stableStart >= STABLE_MS && state.stableGesture === smoothed.name) {
-      if (now - state.lastTime < COOLDOWN_MS) {
-        return { state: { ...state, recent, lastTime: now }, added: null, smoothed };
-      }
       const word = smoothed.name.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
-      const newWords =
-        state.words.length > 0 && state.words[state.words.length - 1].toLowerCase() === word.toLowerCase()
-          ? state.words
-          : [...state.words, word];
+      const lastWord = state.words[state.words.length - 1];
+      if (word === lastWord) {
+        return {
+          state: {
+            ...state,
+            lastTime: now,
+            stableStart: null,
+            stableGesture: null,
+            recent: [],
+            lockedGesture: smoothed.name,
+            phase: 'CONFIRMED',
+          },
+          added: null,
+          smoothed,
+        };
+      }
       return {
         state: {
           ...state,
-          words: newWords,
+          words: [...state.words, word],
           lastTime: now,
-          stableStart: now + GAP_MS,
+          stableStart: null,
           stableGesture: null,
           lastGesture: smoothed.name,
           recent: [],
           lockedGesture: smoothed.name,
-          lockUntil: now + LOCK_MS,
+          phase: 'CONFIRMED',
         },
         added: word,
         smoothed,
       };
     }
-    return { state: { ...state, recent, lastTime: now }, added: null, smoothed };
+    return { state: { ...state, recent, lastTime: now, phase: 'STABLE' }, added: null, smoothed };
   }
 
   return {
-    state: { ...state, recent, lastGesture: smoothed.name, stableStart: null, stableGesture: null, lastTime: now, lockedGesture: null, lockUntil: 0 },
+    state: { ...state, recent, lastGesture: smoothed.name, stableStart: null, stableGesture: null, lastTime: now, phase: 'DETECTING' },
     added: null,
     smoothed,
   };
@@ -123,12 +143,7 @@ export function addDetection(
 
 export function buildSentence(words: string[]): string {
   if (words.length === 0) return '';
-  let s = words.join(' ');
-  s = s.replace(/\b([A-Za-z]+)\s+\1\b/gi, '$1');
-  let formatted = s.toLowerCase();
-  if (formatted.length > 0) formatted = formatted.charAt(0).toUpperCase() + formatted.slice(1);
-  if (!/[.!?]$/.test(formatted)) formatted += '.';
-  return formatted;
+  return words.join(' ');
 }
 
 export function clearSentence(state: SentenceState): SentenceState {

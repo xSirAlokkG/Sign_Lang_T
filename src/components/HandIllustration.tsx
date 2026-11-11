@@ -6,19 +6,14 @@ type Props = {
 };
 
 const GESTURE_SHAPES: Record<string, { thumb: FingerState; index: FingerState; middle: FingerState; ring: FingerState; pinky: FingerState; label: string }> = {
-  HELLO: { thumb: 'extended', index: 'extended', middle: 'extended', ring: 'extended', pinky: 'extended', label: 'Open hand, wave' },
   GOODBYE: { thumb: 'extended', index: 'extended', middle: 'extended', ring: 'extended', pinky: 'extended', label: 'Open hand, wave' },
-  YES: { thumb: 'folded', index: 'folded', middle: 'folded', ring: 'folded', pinky: 'folded', label: 'Fist, nod' },
   NO: { thumb: 'extended', index: 'folded', middle: 'folded', ring: 'folded', pinky: 'extended', label: 'Thumb + pinky' },
-  PLEASE: { thumb: 'extended', index: 'extended', middle: 'extended', ring: 'extended', pinky: 'extended', label: 'Flat hand, circle' },
+  PLEASE: { thumb: 'extended', index: 'extended', middle: 'extended', ring: 'extended', pinky: 'folded', label: 'Flat hand, circle' },
   THANK_YOU: { thumb: 'extended', index: 'extended', middle: 'extended', ring: 'folded', pinky: 'folded', label: 'Chin forward' },
-  HELP: { thumb: 'folded', index: 'folded', middle: 'extended', ring: 'extended', pinky: 'extended', label: 'Fist on palm' },
   WATER: { thumb: 'extended', index: 'extended', middle: 'extended', ring: 'folded', pinky: 'folded', label: 'W shape, chin' },
   EAT: { thumb: 'folded', index: 'extended', middle: 'extended', ring: 'folded', pinky: 'folded', label: 'Fingertips to mouth' },
-  LOVE: { thumb: 'extended', index: 'extended', middle: 'folded', ring: 'folded', pinky: 'extended', label: 'I-L-Y shape' },
   SAD: { thumb: 'folded', index: 'folded', middle: 'folded', ring: 'extended', pinky: 'extended', label: 'Slide down face' },
   HAPPY: { thumb: 'extended', index: 'extended', middle: 'folded', ring: 'folded', pinky: 'extended', label: 'I-L-Y shape' },
-  STOP: { thumb: 'folded', index: 'extended', middle: 'extended', ring: 'extended', pinky: 'extended', label: 'Open palm forward' },
   I: { thumb: 'extended', index: 'folded', middle: 'folded', ring: 'folded', pinky: 'folded', label: 'Thumb to self' },
   YOU: { thumb: 'folded', index: 'extended', middle: 'folded', ring: 'folded', pinky: 'folded', label: 'Index points out' },
 };

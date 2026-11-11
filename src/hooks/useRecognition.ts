@@ -7,6 +7,18 @@ import type { GestureClassifier } from '@/lib/modelRegistry';
 import type { Classification } from '@/lib/gestures';
 import { fetchRules, classifyWithCustom, type CustomGestureRule } from '@/lib/customGestures';
 
+export type DebugInfo = {
+  cameraActive: boolean;
+  modelLoaded: boolean;
+  handDetected: boolean;
+  handCount: number;
+  topPredictions: { name: string; confidence: number }[];
+  confirmedGesture: string | null;
+  fps: number;
+  inferenceMs: number;
+  predictionStatus: string;
+};
+
 export type RecognitionState = {
   active: boolean;
   error: string | null;
@@ -25,6 +37,7 @@ export type RecognitionState = {
   start: () => Promise<void>;
   stop: () => void;
   videoRef: React.RefObject<HTMLVideoElement | null>;
+  reconnect: () => void;
   clearSentence: () => void;
   undoWord: () => void;
   setSentenceWords: (words: string[]) => void;
@@ -34,12 +47,15 @@ export type RecognitionState = {
   modelSource: 'builtin' | 'custom';
   customRules: CustomGestureRule[];
   reloadRules: () => Promise<void>;
+  debug: DebugInfo;
+  showDebug: boolean;
+  setShowDebug: (v: boolean) => void;
 };
 
 const DEFAULT_THRESHOLD = 0.85;
 
 export function useRecognition(): RecognitionState {
-  const { videoRef, active, error, facingMode, switchCamera, start, stop } = useCamera();
+  const { videoRef, active, error, facingMode, switchCamera, start, stop, reconnect } = useCamera();
   const [hands, setHands] = useState<HandResult[]>([]);
   const [currentGesture, setCurrentGesture] = useState<string | null>(null);
   const [smoothedGesture, setSmoothedGesture] = useState<string | null>(null);
@@ -53,6 +69,18 @@ export function useRecognition(): RecognitionState {
   const [classifierLabels, setClassifierLabels] = useState<string[]>([]);
   const [modelSource, setModelSource] = useState<'builtin' | 'custom'>('builtin');
   const [customRules, setCustomRules] = useState<CustomGestureRule[]>([]);
+  const [showDebug, setShowDebug] = useState(false);
+  const [debug, setDebug] = useState<DebugInfo>({
+    cameraActive: false,
+    modelLoaded: false,
+    handDetected: false,
+    handCount: 0,
+    topPredictions: [],
+    confirmedGesture: null,
+    fps: 0,
+    inferenceMs: 0,
+    predictionStatus: 'Idle',
+  });
 
   const sentenceRef = useRef<SentenceState>(createSentenceState());
   const rafRef = useRef<number | null>(null);
@@ -63,6 +91,9 @@ export function useRecognition(): RecognitionState {
   const classifierRef = useRef<GestureClassifier | null>(null);
   const customRulesRef = useRef<CustomGestureRule[]>([]);
   const thresholdRef = useRef(threshold);
+  const topPredictionsRef = useRef<{ name: string; confidence: number }[]>([]);
+  const debugRef = useRef(debug);
+  debugRef.current = debug;
   thresholdRef.current = threshold;
   customRulesRef.current = customRules;
 
@@ -90,18 +121,24 @@ export function useRecognition(): RecognitionState {
   useEffect(() => {
     if (!active) {
       setHands([]);
+      setDebug((d) => ({ ...d, cameraActive: false, handDetected: false, handCount: 0, predictionStatus: 'Camera off' }));
       return;
     }
+    setDebug((d) => ({ ...d, cameraActive: true, predictionStatus: 'Starting…' }));
     let cancelled = false;
     (async () => {
       if (!landmarkerRef.current) {
         try {
           landmarkerRef.current = await getHandLandmarker();
+          setDebug((d) => ({ ...d, modelLoaded: true }));
         } catch {
           if (!cancelled) setModelError(true);
           return;
         }
       }
+      if (cancelled) return;
+      setDebug((d) => ({ ...d, predictionStatus: 'Running' }));
+
       const loop = () => {
         if (cancelled) return;
         const video = videoRef.current;
@@ -116,17 +153,22 @@ export function useRecognition(): RecognitionState {
             setHands(res.hands);
             const primary = res.hands[0];
             let raw: Classification | null = null;
+            const preds: { name: string; confidence: number }[] = [];
             if (primary) {
               const clf = classifierRef.current;
               if (clf) {
                 const result = clf.classify(primary.landmarks, video);
                 raw = result;
+                if (result) preds.push({ name: result.name, confidence: result.confidence });
               } else if (customRulesRef.current.length > 0) {
                 raw = classifyWithCustom(primary.landmarks, customRulesRef.current);
+                if (raw) preds.push({ name: raw.name, confidence: raw.confidence });
               } else {
                 raw = classifyGesture(primary.landmarks);
+                if (raw) preds.push({ name: raw.name, confidence: raw.confidence });
               }
             }
+            topPredictionsRef.current = preds;
             const { state: newState, smoothed } = addDetection(sentenceRef.current, raw, now, thresholdRef.current);
             sentenceRef.current = newState;
             setSentenceText(buildSentence(newState.words));
@@ -139,13 +181,23 @@ export function useRecognition(): RecognitionState {
               setConfidence(0);
               setSmoothedGesture(null);
             }
+            setDebug((d) => ({
+              ...d,
+              handDetected: res.hands.length > 0,
+              handCount: res.hands.length,
+              topPredictions: preds,
+              confirmedGesture: smoothed?.name ?? null,
+              predictionStatus: 'Running',
+            }));
           } catch {
-            // skip frame
+            // skip frame, continue loop
           }
           frameCountRef.current++;
           const elapsed = now - fpsTimeRef.current;
           if (elapsed >= 1000) {
-            setFps(Math.round((frameCountRef.current * 1000) / elapsed));
+            const f = Math.round((frameCountRef.current * 1000) / elapsed);
+            setFps(f);
+            setDebug((d) => ({ ...d, fps: f, inferenceMs: performance.now() - t0 }));
             frameCountRef.current = 0;
             fpsTimeRef.current = now;
           }
@@ -157,6 +209,7 @@ export function useRecognition(): RecognitionState {
     return () => {
       cancelled = true;
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active]);
@@ -197,6 +250,7 @@ export function useRecognition(): RecognitionState {
     start,
     stop,
     videoRef,
+    reconnect,
     clearSentence: handleClear,
     undoWord: handleUndo,
     setSentenceWords: handleSetWords,
@@ -206,6 +260,9 @@ export function useRecognition(): RecognitionState {
     modelSource,
     customRules,
     reloadRules,
+    debug,
+    showDebug,
+    setShowDebug,
   };
 }
 
